@@ -7,7 +7,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Month;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class UserMealsUtil {
 
@@ -26,20 +29,18 @@ public class UserMealsUtil {
 
     public static List<UserMealWithExceed> getFilteredWithExceeded(List<UserMeal> mealList, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
 
-        Map<LocalDate, Integer> caloriesByDate = new HashMap<>();
-        for (UserMeal userMeal : mealList) {
-            caloriesByDate.put(userMeal.getDateTime().toLocalDate(),
-                    userMeal.getCalories() + caloriesByDate.getOrDefault(userMeal.getDateTime().toLocalDate(), 0));
-        }
+        Map<LocalDate, Integer> caloriesByDate = mealList
+                .stream()
+                .filter(x -> TimeUtil.isBetween(x.getDateTime().toLocalTime(), startTime, endTime))
+                .collect(Collectors.groupingBy(um -> um.getDateTime().toLocalDate(),
+                        Collectors.summingInt(UserMeal::getCalories)));
 
-        List<UserMealWithExceed> userMealWithExceedsList = new LinkedList<>();
-        for (UserMeal userMeal : mealList) {
-            if (TimeUtil.isBetween(userMeal.getDateTime().toLocalTime(), startTime, endTime)) {
-                userMealWithExceedsList.add(new UserMealWithExceed(userMeal.getDateTime(), userMeal.getDescription(),
-                        userMeal.getCalories(), caloriesByDate.get(userMeal.getDateTime().toLocalDate()) > caloriesPerDay));
-            }
-        }
-
-        return userMealWithExceedsList;
+        return mealList
+                .stream()
+                .filter(um -> TimeUtil.isBetween(um.getDateTime().toLocalTime(), startTime, endTime))
+                .map(um -> new UserMealWithExceed(um.getDateTime(), um.getDescription(), um.getCalories(),
+                        caloriesByDate.get(um.getDateTime().toLocalDate()) > caloriesPerDay))
+                .collect(Collectors.toList());
     }
 }
+
